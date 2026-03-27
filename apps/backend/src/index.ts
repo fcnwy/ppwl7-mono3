@@ -6,12 +6,51 @@ import { prisma } from "../prisma/db";
 import { createOAuthClient, getAuthUrl } from "./auth";
 import { getCourses, getCourseWorks, getSubmissions } from "./classroom";
 import type { ApiResponse, HealthCheck, User } from "shared";
+import * as path from "path";
+import * as fs from "fs";
 
 // Simple in-memory token store (ganti dengan database/session untuk production)
 const tokenStore = new Map<string, { access_token: string; refresh_token?: string }>();
 
+// Fungsi untuk mendeteksi apakah request berasal dari browser langsung
+const isBrowserRequest = (request: Request): boolean => {
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const accept = request.headers.get("accept") ?? "";
+
+  // Browser biasanya kirim Accept: text/html
+  const acceptsHtml = accept.includes("text/html");
+
+  // Tidak ada origin & referer = direct browser access / curl
+  // Tapi curl tidak kirim Accept: text/html, browser kirim
+  return acceptsHtml && !origin && !referer;
+};
+
 const app = new Elysia()
-  .use(cors({ origin: ["http://localhost:5173", "http://localhost:5174"], credentials: true }))
+  // Modifikasi CORS menggunakan Environment Variable
+  .use(cors({ origin: [process.env.FRONTEND_URL ?? "", process.env.TEST_URL ?? ""] }))
+  // Tambahkan middleware onRequest untuk mengecek akses ke /users
+  .onRequest(({ request, set }) => {
+    const url = new URL(request.url);
+    // HANYA jalankan logika jika path dimulai dengan /users
+    if (url.pathname.startsWith("/users")) {
+      const origin = request.headers.get("origin");
+      const frontendUrl = process.env.FRONTEND_URL ?? "";
+
+      // Jika request dari FRONTEND_URL → langsung izinkan
+      if (origin && origin === frontendUrl) return;
+
+      // Jika akses dari browser langsung → wajib ada ?key=
+      if (isBrowserRequest(request)) {
+        const key = url.searchParams.get("key");
+
+        if (!key || key !== process.env.API_KEY) {
+          set.status = 401;
+          return { message: "Unauthorized: missing or invalid key" };
+        }
+      }
+    }
+  })
   .use(swagger())
   .use(cookie())
 
@@ -64,8 +103,8 @@ const app = new Elysia()
     session.value = sessionId;
     session.maxAge = 60 * 60 * 24; // 1 hari
 
-    // Redirect ke frontend
-    return redirect("http://localhost:5173/classroom");
+    // Redirect ke frontend menggunakan Environment Variable
+    return redirect(`${process.env.FRONTEND_URL}/classroom`);
   })
 
   // Cek status login
@@ -133,9 +172,27 @@ const app = new Elysia()
     return { data: result, message: "Course submissions retrieved" };
   })
 
-  .listen(3000);
+  // Endpoint test prisma client Elysia
+  .get("/debug-prisma", () => {
+    // Karena index.ts ada di src/, direktori generated ada relatif ke __dirname
+    const generatedPath = path.resolve(__dirname, "./generated/prisma/client");
+    const exists = fs.existsSync(generatedPath);
 
-console.log(`🦊 Backend → http://localhost:${app.server?.port}`);
-console.log(`📖 Swagger → http://localhost:${app.server?.port}/swagger`);
+    return {
+      path: generatedPath,
+      exists: exists,
+      files: exists ? fs.readdirSync(generatedPath) : []
+    };
+  });
 
+// Console log yang tidak tampil di production & pakai nilai dari ENV
+if (process.env.NODE_ENV != "production") {
+  app.listen(3000);
+  console.log(`🦊 Backend → http://localhost:3000`);
+  console.log(`🦊 TEST_URL: ${process.env.TEST_URL}`);
+  console.log(`🦊 DATABASE_URL: ${process.env.DATABASE_URL}`);
+}
+
+// Export app agar Elysia dapat dibaca Vercel serverless.
+export default app;
 export type App = typeof app;
