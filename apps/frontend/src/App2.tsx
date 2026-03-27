@@ -16,7 +16,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([])
 
   const loadUsers = async () => {
-    const res = await fetch("http://localhost:3000/users")
+    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/users`)
     const data: ApiResponse<User[]> = await res.json()
 
     setUsers(data.data)

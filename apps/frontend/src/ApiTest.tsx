@@ -7,7 +7,7 @@ function App() {
 
   const handleClick = async () => {
     try {
-      const res = await fetch("http://localhost:3000")
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}`)
       const data: ApiResponse<HealthCheck> = await res.json()
 
       setResponse(data.data.status)
