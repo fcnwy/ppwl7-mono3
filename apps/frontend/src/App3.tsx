@@ -219,7 +219,7 @@ export default function App() {
     setError(null)
     try {
       const res = await fetch(
-        `http://localhost:3000/classroom/courses/${courseId}/submissions`,
+        `${import.meta.env.VITE_BACKEND_URL}/classroom/courses/${courseId}/submissions`,
         { credentials: "include" }
       )
       const d = await res.json()

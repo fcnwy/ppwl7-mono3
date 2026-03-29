@@ -28,7 +28,9 @@ const isBrowserRequest = (request: Request): boolean => {
 
 const app = new Elysia()
   // Modifikasi CORS menggunakan Environment Variable
-  .use(cors({ origin: [process.env.FRONTEND_URL ?? "", process.env.TEST_URL ?? ""] }))
+  .use(cors({ origin: [process.env.FRONTEND_URL ?? "", process.env.TEST_URL ?? ""],
+  credentials: true,
+  }))
   // Tambahkan middleware onRequest untuk mengecek akses ke /users
   .onRequest(({ request, set }) => {
     const url = new URL(request.url);
