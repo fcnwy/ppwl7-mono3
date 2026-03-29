@@ -102,6 +102,9 @@ const app = new Elysia()
     // Set cookie session
     session.value = sessionId;
     session.maxAge = 60 * 60 * 24; // 1 hari
+    session.sameSite = "none";
+    session.secure = true;
+    session.path = "/";
 
     // Redirect ke frontend menggunakan Environment Variable
     return redirect(`${process.env.FRONTEND_URL}/classroom`);
