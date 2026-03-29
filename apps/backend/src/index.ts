@@ -28,8 +28,14 @@ const isBrowserRequest = (request: Request): boolean => {
 
 const app = new Elysia()
   // Modifikasi CORS menggunakan Environment Variable
-  .use(cors({ origin: [process.env.FRONTEND_URL ?? "", process.env.TEST_URL ?? ""],
-  credentials: true,
+  .use(cors({ 
+    origin: [
+      process.env.FRONTEND_URL ?? "",
+      "http://localhost:5173"
+    ],
+    credentials: true,
+    allowedHeaders: ["Content-Type"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }))
   // Tambahkan middleware onRequest untuk mengecek akses ke /users
   .onRequest(({ request, set }) => {
